@@ -1,0 +1,65 @@
+extern crate comm;
+
+use std::sync::{Arc, Mutex};
+use std::{thread};
+use std::collections::{HashMap};
+use comm::{spmc};
+
+pub fn ssfi() {
+    // Start the queue
+    let word_map: HashMap<&str, usize> = HashMap::new();
+    let data = Arc::new(Mutex::new(word_map));
+    let nthreads = 2;
+    let (send, recv) = spmc::unbounded::new();
+    let input = vec!["The task is",
+                     "to write a program which",
+                     "accepts",
+                     "lines of text and generates output",
+                     "lines of",
+                     "a different length, without splitting any of the",
+                     "words in the text. We assume no word is longer than the size of",
+                     "the output lines.",
+                     "the quick brown fox jumped over the lazy dog"];
+
+    // Start the sender
+    // Use a JoinHandle to explicitly join
+    // at the end of the program
+    let send_guard = thread::spawn(move || {
+        for line in input {
+            send.send(line).unwrap();
+        }
+        // Stick an infinite loop here to
+        // Make sure that sender stays open
+        // and doesn't close prematurely
+    });
+
+    // Start the listeners
+    // Use a JoinHandle to collect the threads
+    // Then start listening, which is a blocking
+    // operation.
+    let recv_guards: Vec<_> = (0..nthreads).map( |i| {
+        let (recv, data) = (recv.clone(), data.clone());
+        thread::spawn(move || {
+            // Listen unless the sender has disconnected
+            while let Ok(n) = recv.recv_sync() {
+                let words = n.split(' ');
+                for word in words {
+                    let mut data = data.lock().unwrap();
+                    // Add the data to the map
+                    let counter = data.entry(word).or_insert(0);
+                    *counter += 1;
+                }
+            }
+        })
+    }).collect();
+
+    // Join the sender, then receivers
+    println!("Sender: {:?}", send_guard.join().unwrap());
+    for i in recv_guards {
+        println!("Receiver: {:?}", i.join().unwrap()); 
+    }
+
+    // What does the data look like?
+    println!("Data:\n {:?}", data);
+}
+
