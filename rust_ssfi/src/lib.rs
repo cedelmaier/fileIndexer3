@@ -2,12 +2,15 @@ extern crate comm;
 
 use std::sync::{Arc, Mutex};
 use std::{thread};
-use std::collections::{HashMap};
+use std::collections::{HashMap,BTreeMap};
+use std::fs::{File};
+
 use comm::{spmc};
 
 pub fn ssfi() {
     // Start the queue
-    let word_map: HashMap<&str, usize> = HashMap::new();
+    //let word_map: HashMap<&str, usize> = HashMap::new();
+    let word_map: BTreeMap<&str, usize> = BTreeMap::new();
     let data = Arc::new(Mutex::new(word_map));
     let nthreads = 2;
     let (send, recv) = spmc::unbounded::new();
@@ -19,7 +22,8 @@ pub fn ssfi() {
                      "a different length, without splitting any of the",
                      "words in the text. We assume no word is longer than the size of",
                      "the output lines.",
-                     "the quick brown fox jumped over the lazy dog"];
+                     "the quick brown fox jumped over the lazy dog",
+                     "she sell sea shell by the sea shore"];
 
     // Start the sender
     // Use a JoinHandle to explicitly join
@@ -46,8 +50,10 @@ pub fn ssfi() {
                 for word in words {
                     let mut data = data.lock().unwrap();
                     // Add the data to the map
-                    let counter = data.entry(word).or_insert(0);
-                    *counter += 1;
+                    //let counter = data.entry(word).or_insert(0);
+                    //*counter += 1;
+                    // BTreeMap in place manipulation
+                    *data.entry(word).or_insert(0) += 1;
                 }
             }
         })
