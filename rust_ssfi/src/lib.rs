@@ -40,21 +40,17 @@ pub fn ssfi() {
     });
 
     // Run single threaded listeners for now
-    // Declare the recv_guard first to use it
-    let recv_guard; 
-    {
     // Have to move inside of a scope to clone data
-    let data = data.clone();
-    recv_guard = thread::spawn(move || {
+    let data2 = data.clone();
+    let recv_guard = thread::spawn(move || {
         while let Ok(n) = recv.recv() {
             let words = n.split(' ');
             for word in words {
-                let mut data = data.lock().unwrap();
+                let mut data = data2.lock().unwrap();
                 *data.entry(word).or_insert(0) += 1
             }
         }
     });
-    }
 
 
     // Start the listeners
