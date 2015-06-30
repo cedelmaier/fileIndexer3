@@ -2,14 +2,8 @@
 name = "rust_ssfi"
 version = "0.1.0"
 dependencies = [
- "comm 0.0.1 (git+https://github.com/mahkoh/comm)",
  "rand 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "comm"
-version = "0.0.1"
-source = "git+https://github.com/mahkoh/comm#df3c2c60a88a367dc21e7e12665878a7926e5436"
 
 [[package]]
 name = "libc"
