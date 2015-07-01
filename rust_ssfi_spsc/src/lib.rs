@@ -4,7 +4,7 @@ extern crate regex;
 
 use std::ascii::AsciiExt;
 use std::thread;
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
@@ -15,7 +15,7 @@ use std::sync::mpsc::channel;
 pub fn ssfi() {
     // Set up any persistent? variables
     let re = regex!(r"\W");
-    let word_map: BTreeMap<String, usize> = BTreeMap::new();
+    let word_map: HashMap<String, usize> = HashMap::new();
     let data = Arc::new(Mutex::new(word_map));
     let (send, recv) = channel::<String>();
 
