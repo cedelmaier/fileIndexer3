@@ -1,44 +1,55 @@
+#![feature(plugin)]
+#![plugin(regex_macros)]
+extern crate regex;
+
+use std::ascii::AsciiExt;
+use std::thread;
+use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::BufRead;
+use std::io::stdin;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::{channel};
-use std::{thread};
-use std::collections::{HashMap,BTreeMap};
-use std::fs::{File};
+use std::sync::mpsc::channel;
 
 pub fn ssfi() {
-    let word_map: BTreeMap<&str, usize> = BTreeMap::new();
+    let re = regex!(r"\W");
+    let word_map: BTreeMap<String, usize> = BTreeMap::new();
     let data = Arc::new(Mutex::new(word_map));
-    let (send, recv) = channel::<&str>();
-    let input = vec!["The task is",
-                     "to write a program which",
-                     "accepts",
-                     "lines of text and generates output",
-                     "lines of",
-                     "a different length, without splitting any of the",
-                     "words in the text. We assume no word is longer than the size of",
-                     "the output lines.",
-                     "the quick brown fox jumped over the lazy dog",
-                     "she sell sea shell by the sea shore"];
+    let (send, recv) = channel::<String>();
 
     // Start the sender
     // Use a JoinHandle to explicitly join
     // at the end of the program
     let send_guard = thread::spawn(move || {
-        for line in input {
-            send.send(line).unwrap();
+        // Read in a file and send it
+        let path = Path::new("hamlet.txt");
+        let file = match File::open(&path) {
+            Err(why) => panic!("failed to open {}: {}", path.display(), why),
+            Ok(f) => f,
+        };
+
+        for line in BufReader::new(file).lines() {
+            let s = line.unwrap();
+            send.send(s).unwrap();
         }
-        // Stick an infinite loop here to
-        // Make sure that sender stays open
-        // and doesn't close prematurely
     });
 
     // Run single threaded listeners for now
     let data2 = data.clone();
     let recv_guard = thread::spawn(move || {
         while let Ok(n) = recv.recv() {
-            let words = n.split(' ');
+            let ln = n.to_ascii_lowercase();
+            let words: Vec<&str> = re.split(&ln).collect();
             for word in words {
-                let mut data = data2.lock().unwrap();
-                *data.entry(word).or_insert(0) += 1
+                match word {
+                    "" => continue,
+                    _ => {
+                        let mut data = data2.lock().unwrap();
+                        *data.entry(word.to_string()).or_insert(0) += 1;
+                    },
+                }
             }
         }
     });
