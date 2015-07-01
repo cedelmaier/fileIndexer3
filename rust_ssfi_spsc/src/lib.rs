@@ -8,12 +8,12 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
-use std::io::stdin;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 
 pub fn ssfi() {
+    // Set up any persistent? variables
     let re = regex!(r"\W");
     let word_map: BTreeMap<String, usize> = BTreeMap::new();
     let data = Arc::new(Mutex::new(word_map));
@@ -30,6 +30,7 @@ pub fn ssfi() {
             Ok(f) => f,
         };
 
+        // Read the lines from the file and send them
         for line in BufReader::new(file).lines() {
             let s = line.unwrap();
             send.send(s).unwrap();
@@ -37,9 +38,12 @@ pub fn ssfi() {
     });
 
     // Run single threaded listeners for now
+    // Create a data2 clone from data for the receivers
     let data2 = data.clone();
     let recv_guard = thread::spawn(move || {
         while let Ok(n) = recv.recv() {
+            // Convert to lowercase, then split on anything that
+            // isn't alphanumeric
             let ln = n.to_ascii_lowercase();
             let words: Vec<&str> = re.split(&ln).collect();
             for word in words {
@@ -57,7 +61,14 @@ pub fn ssfi() {
     println!("Sender: {:?}", send_guard.join().unwrap());
     println!("Receiver: {:?}", recv_guard.join().unwrap());
 
-    // What does the data look like?
-    println!("Data:\n {:?}", data);
+    // Print the first 20 key value pairs in the tree
+    let mut counter = 0;
+    for (key, value) in data.lock().unwrap().iter() {
+        if counter > 20 { break; }
+        println!("{}: {}", key, value);
+        counter += 1;
+    }
+    // The whole dataset
+    // println!("{:?}", data);
 }
 
