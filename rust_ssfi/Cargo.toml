@@ -6,3 +6,5 @@ authors = ["Christopher Edelmaier <christopher.edelmaier@gmail.com>"]
 [dependencies]
 rand = "*"
 
+[dependencies.comm]
+git = "https://github.com/mahkoh/comm"
