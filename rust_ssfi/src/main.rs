@@ -1,6 +1,6 @@
-extern crate rust_ssfi;
+extern crate ssfi_spmc;
 
-use rust_ssfi::ssfi;
+use ssfi_spmc::ssfi;
 
 fn main() {
     ssfi();

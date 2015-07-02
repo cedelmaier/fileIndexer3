@@ -1,10 +1,11 @@
 [package]
-name = "rust_ssfi"
-version = "0.1.0"
+name = "ssfi_spmc"
+version = "0.2.0"
 authors = ["Christopher Edelmaier <christopher.edelmaier@gmail.com>"]
 
 [dependencies]
-rand = "*"
+regex = "*"
+regex_macros = "*"
 
 [dependencies.comm]
 git = "https://github.com/mahkoh/comm"
