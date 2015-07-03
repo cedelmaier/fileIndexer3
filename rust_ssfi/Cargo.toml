@@ -6,6 +6,7 @@ authors = ["Christopher Edelmaier <christopher.edelmaier@gmail.com>"]
 [dependencies]
 regex = "*"
 regex_macros = "*"
+getopts = "*"
 
 [dependencies.comm]
 git = "https://github.com/mahkoh/comm"

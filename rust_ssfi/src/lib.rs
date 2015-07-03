@@ -14,11 +14,11 @@ use std::sync::{Arc, Mutex};
 
 use comm::spmc;
 
-pub fn ssfi() {
+pub fn ssfi(nthreads: usize, directory: &str) {
+    println!("t: {}, d: {}", nthreads, directory);
     // Set up any persistent variables
     let word_map: HashMap<String, usize> = HashMap::new();
     let data = Arc::new(Mutex::new(word_map));
-    let nthreads = 2;
     let (send, recv) = spmc::unbounded::new();
 
     let input_paths = vec!["../../test/Clone0/Clone1/completeWorks.txt",
