@@ -61,7 +61,7 @@ pub fn ssfi() {
                     let ln = line.unwrap().to_ascii_lowercase();
                     // The regex! macro must be invoked here otherwise it
                     // won't borrow correctly. Is it faster than the dynamic
-                    // version?
+                    // version?  Can we just borrow it for the two closures?
                     let re = regex!(r"\W");
                     let words: Vec<&str> = re.split(&ln).collect();
                     for word in words {
@@ -87,6 +87,7 @@ pub fn ssfi() {
     }
 
     // Print the first 20 keys in the map for fun
+    // Unordered since we're using a hashmap
     let mut counter = 0;
     for (key, value) in data.lock().unwrap().iter() {
         if counter > 20 { break; }
