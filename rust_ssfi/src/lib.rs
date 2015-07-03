@@ -21,21 +21,20 @@ pub fn ssfi() {
     let nthreads = 2;
     let (send, recv) = spmc::unbounded::new();
 
+    let input_paths = vec!["../../test/Clone0/Clone1/completeWorks.txt",
+                           "../../test/Clone0/Clone1/Oxford English Dictionary.txt",
+                           "../../test/Clone0/Clone1/ThreeStateDI.txt",
+                           "../../test/Clone0/Clone1/semaphore.txt",
+                           "../../test/Clone0/Clone1/books/theadventuresofsherlockholmes.txt"];
+
     // Start the sender
     // Use a JoinHandle to explicitly join
     // at the end of the program
     let send_guard = thread::spawn(move || {
-        // Read in a file and send it
-        let path = Path::new("../../test/Clone0/Clone1/completeWorks.txt");
-        let file = match File::open(&path) {
-            Err(why) => panic!("failed to open {}: {}", path.display(), why),
-            Ok(f) => f,
-        };
-
-        // Read the lines from the file and send them
-        for line in BufReader::new(file).lines() {
-            let s = line.unwrap();
-            send.send(s).unwrap();
+        // Simply send a file from the input_paths list to the waiting
+        // workers
+        for path in input_paths {
+            send.send(path).unwrap();
         }
     });
 
@@ -49,23 +48,32 @@ pub fn ssfi() {
         thread::spawn(move || {
             // Listen unless the sender has disconnected
             while let Ok(n) = recv.recv_sync() {
-                // Convert to lowercase, then split on anything
-                // that isn't alphanumeric
-                let ln = n.to_ascii_lowercase();
-                // The regex! must be compiled here, not in the main program
-                // or we have to borrow it or something.  Is it faster than
-                // the dynamic regex version?
-                let re = regex!(r"\W");
-                let words: Vec<&str> = re.split(&ln).collect();
-                for word in words {
-                    match word {
-                        "" => continue,
-                        _ => {
-                            // Lock the data and add to it, this should be the
-                            // bottleneck in the code
-                            let mut data = data.lock().unwrap();
-                            *data.entry(word.to_string()).or_insert(0) += 1;
-                        },
+                // Create the path and attempt to open
+                let path = Path::new(n);
+                let file = match File::open(&path) {
+                    Err(why) => panic!("failed to open {}: {}", path.display(), why),
+                    Ok(f) => f,
+                };
+
+                // Now read the lines from the file
+                for line in BufReader::new(file).lines() {
+                    // Convert every line to lowercase
+                    let ln = line.unwrap().to_ascii_lowercase();
+                    // The regex! macro must be invoked here otherwise it
+                    // won't borrow correctly. Is it faster than the dynamic
+                    // version?
+                    let re = regex!(r"\W");
+                    let words: Vec<&str> = re.split(&ln).collect();
+                    for word in words {
+                        match word {
+                            "" => continue,
+                            _ => {
+                                // Lock the data and add to it, this should be
+                                // the bottleneck in the code
+                                let mut data = data.lock().unwrap();
+                                *data.entry(word.to_string()).or_insert(0) += 1;
+                            },
+                        }
                     }
                 }
             }
