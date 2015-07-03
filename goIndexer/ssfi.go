@@ -82,7 +82,8 @@ func fileIndexer(done <-chan struct{}, filepaths <-chan string, c chan<- result)
 			fmt.Printf("\tIndexer[%s] indexing: %v\n", index, path)
 		}
 		file, ferr := os.Open(path)
-		defer file.Close()
+		//defer file.Close()
+		//This doesn't close file until end of function, not scope!
 
 		if ferr != nil {
 			log.Fatal(ferr)
@@ -109,6 +110,8 @@ func fileIndexer(done <-chan struct{}, filepaths <-chan string, c chan<- result)
 				}
 			}
 		}
+
+		file.Close()
 
 		if pbool {
 			fmt.Printf("\tIndexer[%s]\tDONE indexing: %v\n", index, path)
@@ -168,7 +171,7 @@ func ssfi(rootDir string) (map[string]int, error) {
 	}
 
 	if err := <-errc; err != nil {
-		log.Println("ssfi failed!")
+		log.Fatal("ssfi failed!")
 		return nil, err
 	}
 
@@ -200,6 +203,9 @@ func main() {
 	}
 
 	m, err := ssfi(rootDir)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	//Use the online suggestion of how to use slices to make a map sort
 	p := sortMapByValue(m)
