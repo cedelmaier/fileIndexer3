@@ -19,6 +19,7 @@ fn main() {
     let mut opts = Options::new();
     opts.optopt("t", "", "number of threads", "NTHREADS");
     opts.optopt("d", "", "directory", "DIRECTORY");
+    opts.optopt("p", "", "print", "PRINT");
     opts.optflag("h", "help", "print this help menu");
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }

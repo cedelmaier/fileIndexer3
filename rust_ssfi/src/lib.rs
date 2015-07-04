@@ -43,12 +43,14 @@ pub fn ssfi(nthreads: usize, directory: &str) {
     // Use a JoinHandle to collect the threads
     // Then start listening, which is a blocking
     // operation.
-    let recv_guards: Vec<_> = (0..nthreads).map( |_| {
+    let recv_guards: Vec<_> = (0..nthreads).map( |i| {
         let (recv, data) = (recv.clone(), data.clone());
         thread::spawn(move || {
+            println!("Indexer[{}] coming online", i);
             // Listen unless the sender has disconnected
             while let Ok(n) = recv.recv_sync() {
                 // Create the path and attempt to open
+                println!("\tIndexer[{}] indexing: {}", i, n);
                 let path = Path::new(n);
                 let file = match File::open(&path) {
                     Err(why) => panic!("failed to open {}: {}", path.display(), why),
