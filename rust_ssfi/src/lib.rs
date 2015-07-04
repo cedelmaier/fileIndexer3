@@ -1,40 +1,54 @@
 #![feature(plugin)]
+#![feature(fs_walk)]
 #![plugin(regex_macros)]
+
 extern crate comm;
 extern crate regex;
 
 use std::ascii::AsciiExt;
 use std::thread;
 use std::collections::HashMap;
+use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+use regex::Regex;
+
 use comm::spmc;
 
 pub fn ssfi(nthreads: usize, directory: &str) {
-    println!("t: {}, d: {}", nthreads, directory);
     // Set up any persistent variables
     let word_map: HashMap<String, usize> = HashMap::new();
     let data = Arc::new(Mutex::new(word_map));
     let (send, recv) = spmc::unbounded::new();
 
-    let input_paths = vec!["../../test/Clone0/Clone1/completeWorks.txt",
-                           "../../test/Clone0/Clone1/Oxford English Dictionary.txt",
-                           "../../test/Clone0/Clone1/ThreeStateDI.txt",
-                           "../../test/Clone0/Clone1/semaphore.txt",
-                           "../../test/Clone0/Clone1/books/theadventuresofsherlockholmes.txt"];
-
     // Start the sender
     // Use a JoinHandle to explicitly join
     // at the end of the program
+    // Need a String, &str doesn't live long enough
+    // Can we fix this?  Happens a lot
+    let s_directory: String = directory.to_string();
     let send_guard = thread::spawn(move || {
-        // Simply send a file from the input_paths list to the waiting
-        // workers
-        for path in input_paths {
-            send.send(path).unwrap();
+        match fs::walk_dir(s_directory) {
+            Err(why) => println!("! {:?}", why),
+            Ok(paths) => for path in paths {
+                // Incredibly arcane conversion from a 
+                // DirEntry to a String
+                let s: String = path.unwrap()
+                                    .path()
+                                    .to_str()
+                                    .unwrap()
+                                    .to_string();
+                // Try using the normal regexes, test for
+                // .txt files ending the filename
+                let re = Regex::new(r"\.txt$").unwrap();
+                if re.is_match(&s) {
+                    send.send(s).unwrap();
+                }
+            },
         }
     });
 
@@ -51,7 +65,8 @@ pub fn ssfi(nthreads: usize, directory: &str) {
             while let Ok(n) = recv.recv_sync() {
                 // Create the path and attempt to open
                 println!("\tIndexer[{}] indexing: {}", i, n);
-                let path = Path::new(n);
+                // Path::new takes a string slice
+                let path = Path::new(&n);
                 let file = match File::open(&path) {
                     Err(why) => panic!("failed to open {}: {}", path.display(), why),
                     Ok(f) => f,
@@ -64,7 +79,8 @@ pub fn ssfi(nthreads: usize, directory: &str) {
                     // The regex! macro must be invoked here otherwise it
                     // won't borrow correctly. Is it faster than the dynamic
                     // version?  Can we just borrow it for the two closures?
-                    let re = regex!(r"\W");
+                    //let re = regex!(r"\W");
+                    let re = Regex::new(r"\W").unwrap();
                     let words: Vec<&str> = re.split(&ln).collect();
                     for word in words {
                         match word {
@@ -79,6 +95,8 @@ pub fn ssfi(nthreads: usize, directory: &str) {
                     }
                 }
             }
+
+            println!("Indexer[{}] terminating", i);
         })
     }).collect();
 
