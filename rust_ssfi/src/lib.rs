@@ -22,9 +22,7 @@ use comm::spmc;
 
 pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     // Set up any persistent variables
-    //let word_map: HashMap<&str, usize> = HashMap::new();
-    let word_map = HashMap::new();
-    let data = Arc::new(Mutex::new(word_map));
+    let data = Arc::new(Mutex::new(HashMap::<String, u32>::new()));
     let (send, recv) = spmc::unbounded::new();
 
     // Start the sender
@@ -54,10 +52,8 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
         }
     });
 
-    //let re = regex!(r"\W"); // 5.84s
-    //let re = Regex::new(r"\W").unwrap(); // 6.84s
-    //let re = regex!(r"[^a-zA-Z0-9_]"); // 8.16s
-    let re = regex!(r"[^a-zA-Z0-9_]+");
+    let re = regex!(r"[^a-zA-Z0-9_]+"); // Fastest
+    //let re = regex!(r"[a-zA-z0-9_]+");
 
     // Start the listeners
     // Use a JoinHandle to collect the threads
@@ -93,7 +89,7 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
                             },
                         }
                     }
-                }
+                } // BufReader
             }
 
             if printon { println!("Indexer[{}] terminating", i); }
@@ -105,14 +101,18 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     for i in recv_guards {
         i.join().unwrap();
     }
-    
+
+    // Prints alphabetically
+    let mut counter = 0;
     if printon {
-        // Print the first 20 keys in the map for fun
-        // Unordered since we're using a hashmap
-        let mut counter = 0;
-        for (key, value) in data.lock().unwrap().iter() {
-            if counter > 20 { break; }
-            println!("{}: {}", key, value);
+        let data = data.lock().unwrap();
+        let mut words: Vec<&String> = data.keys().collect();
+        words.sort();
+        for &word in &words {
+            if counter >= 20 { break; }
+            if let Some(count) = data.get(word) {
+                println!("[{}]\t{}", count, word);
+            }
             counter += 1;
         }
     }
@@ -125,7 +125,12 @@ mod tests {
     use super::*;
 
     #[bench]
+    fn ssfi_test_t1(b: &mut test::Bencher) {
+        b.iter(|| test::black_box(ssfi(1, "../../test/Clone0/Clone1/books", false)))
+    } 
+
+    #[bench]
     fn ssfi_test_t2(b: &mut test::Bencher) {
-        b.iter(|| test::black_box(ssfi(2, "../../test/Clone0/Clone1", false)))
+        b.iter(|| test::black_box(ssfi(2, "../../test/Clone0/Clone1/books", false)))
     } 
 }
