@@ -52,15 +52,12 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
         }
     });
 
-    let re = regex!(r"[^a-zA-Z0-9_]+"); // Fastest
-    //let re = regex!(r"[a-zA-z0-9_]+");
-
     // Start the listeners
     // Use a JoinHandle to collect the threads
     // Then start listening, which is a blocking
     // operation.
     let recv_guards: Vec<_> = (0..nthreads).map( |i| {
-        let (recv, data, re) = (recv.clone(), data.clone(), re.clone());
+        let (recv, data) = (recv.clone(), data.clone());
         thread::spawn(move || {
             if printon { println!("Indexer[{}] coming online", i); }
             // Listen unless the sender has disconnected
@@ -76,7 +73,7 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
                 // Now read the lines from the file
                 for line in BufReader::new(file).lines() {
                     let ln = line.unwrap().to_ascii_lowercase();
-                    // regex.split is a huge bottleneck!!!!
+                    let re = regex!(r"[^a-zA-Z0-9_]+");
                     let words: Vec<&str> = re.split(&ln).collect();
                     for word in words {
                         match word {
