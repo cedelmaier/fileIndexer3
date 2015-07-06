@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     std::string dirName = "";
     int nThreads = 2;
     int mostUsedWords = 10;
-    bool printIndexing = false;
+    bool printIndexing = true;
 
     if(argc > 2) {
         //Have thread flag and directory
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
     //exploit how the map is sorted already.  We could throw in a vector to sort,
     //but this is already available.  remember we typedefed mmri
     for(mmri it = invertedFinalMap.rbegin(); it != invertedFinalMap.rend(); it++) {
-        std::cout << it->second << "\t" << it->first << std::endl;
+        std::cout << "[" << it->second << "]" << "\t" << it->first << std::endl;
         counter++;
         if(counter >= mostUsedWords)  //However many words you want
             break;

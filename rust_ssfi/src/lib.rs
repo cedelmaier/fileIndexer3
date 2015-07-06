@@ -18,12 +18,13 @@ use std::sync::{Arc, Mutex};
 
 use regex::Regex;
 
-use comm::spmc;
+use comm::{spmc, mpsc};
 
 pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     // Set up any persistent variables
     let data = Arc::new(Mutex::new(HashMap::<String, u32>::new()));
     let (send, recv) = spmc::unbounded::new();
+    let (serial_send, serial_recv) = mpsc::unbounded::new();
 
     // Start the sender
     // Use a JoinHandle to explicitly join
@@ -57,7 +58,8 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     // Then start listening, which is a blocking
     // operation.
     let recv_guards: Vec<_> = (0..nthreads).map( |i| {
-        let (recv, data) = (recv.clone(), data.clone());
+        let serial_send = serial_send.clone();
+        let recv = recv.clone();
         thread::spawn(move || {
             if printon { println!("Indexer[{}] coming online", i); }
             // Listen unless the sender has disconnected
@@ -79,10 +81,8 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
                         match word {
                             "" => continue,
                             _ => {
-                                // Lock the data and add to it, this should be
-                                // the bottleneck in the code
-                                let mut data = data.lock().unwrap();
-                                *data.entry(word.to_owned()).or_insert(0) += 1;
+                                // Serialize the send portion
+                                serial_send.send(word.to_string()).unwrap();
                             },
                         }
                     }
@@ -93,11 +93,26 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
         })
     }).collect();
 
+    // Serialize access to the hashmap instead of sharing
+    // it
+    let data2 = data.clone();
+    let serialize_guard = thread::spawn(move || {
+        if printon { println!("Serializer coming online"); }
+        let mut data = data2.lock().unwrap();
+        while let Ok(n) = serial_recv.recv_sync() {
+            *data.entry(n).or_insert(0) += 1;
+        }
+        if printon { println!("Serializer terminating"); }
+    });
+
     // Join the sender, then receivers
     send_guard.join().unwrap();
     for i in recv_guards {
         i.join().unwrap();
     }
+    // drop the final copy of serial_send
+    drop(serial_send);
+    serialize_guard.join().unwrap();
 
     // Prints alphabetically
     let mut counter = 0;
