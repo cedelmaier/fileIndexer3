@@ -17,6 +17,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
     let mut opts = Options::new();
+    let mut b_print = false;
     opts.optopt("t", "", "number of threads", "NTHREADS");
     opts.optopt("d", "", "directory", "DIRECTORY");
     opts.optopt("p", "", "print", "PRINT");
@@ -29,6 +30,9 @@ fn main() {
         print_usage(&program, opts);
         return;
     }
+    if matches.opt_present("p") {
+        b_print = true;
+    }
     let nthreads: usize = matches.opt_str("t")
                                  .unwrap()
                                  .parse::<usize>()
@@ -36,7 +40,7 @@ fn main() {
     let directory = matches.opt_str("d").unwrap();
 
     // Run the program
-    ssfi(nthreads, &directory);
+    ssfi(nthreads, &directory, b_print);
 }
 
 
