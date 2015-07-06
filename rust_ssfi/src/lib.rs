@@ -138,11 +138,11 @@ mod tests {
 
     #[bench]
     fn ssfi_test_t1(b: &mut test::Bencher) {
-        b.iter(|| test::black_box(ssfi(1, "../../test/Clone0/Clone1/books", false)))
+        b.iter(|| test::black_box(ssfi(1, "../test/test0", false)))
     } 
 
     #[bench]
     fn ssfi_test_t2(b: &mut test::Bencher) {
-        b.iter(|| test::black_box(ssfi(2, "../../test/Clone0/Clone1/books", false)))
+        b.iter(|| test::black_box(ssfi(2, "../test/test0", false)))
     } 
 }
