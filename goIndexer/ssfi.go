@@ -182,7 +182,7 @@ func main() {
 	defer timeTrack(time.Now(), "ssfi_main")
 	//One has to set GOMAXPROCS otherwise there is no performance
 	//increase for using go threads
-	runtime.GOMAXPROCS(32)
+	runtime.GOMAXPROCS(runtime.NumCPU() * 4)
 	rootDir := ""
 
 	//Collect command line flags
