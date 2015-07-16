@@ -10,3 +10,6 @@ getopts = "*"
 
 [dependencies.comm]
 git = "https://github.com/mahkoh/comm"
+
+[dependencies.concurrent-hashmap]
+git = "https://github.com/cedelmaier/rust-concurrent-hashmap"

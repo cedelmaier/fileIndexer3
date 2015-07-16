@@ -5,35 +5,36 @@
 
 extern crate comm;
 extern crate regex;
+extern crate concurrent_hashmap;
 
 use std::thread;
 use std::ascii::AsciiExt;
-use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use regex::Regex;
 
-use comm::{spmc, mpsc};
+use comm::spmc;
+
+use concurrent_hashmap::*;
 
 pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     // Set up any persistent variables
-    let data = Arc::new(Mutex::new(HashMap::<String, u32>::new()));
+    let data: Arc<ConcHashMap<String, usize>> = Arc::new(Default::default());
     let (send, recv) = spmc::unbounded::new();
-    let (serial_send, serial_recv) = mpsc::unbounded::new();
 
     // Start the sender
     // Use a JoinHandle to explicitly join
     // at the end of the program
     // Need a String, &str doesn't live long enough
     // Can we fix this?  Happens a lot
-    let s_directory: String = directory.to_string();
+    let directory: String = directory.to_string();
     let send_guard = thread::spawn(move || {
-        match fs::walk_dir(s_directory) {
+        match fs::walk_dir(directory) {
             Err(why) => println!("! {:?}", why),
             Ok(paths) => for path in paths {
                 // Incredibly arcane conversion from a 
@@ -58,8 +59,7 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     // Then start listening, which is a blocking
     // operation.
     let recv_guards: Vec<_> = (0..nthreads).map( |i| {
-        let serial_send = serial_send.clone();
-        let recv = recv.clone();
+        let (recv, data) = (recv.clone(), data.clone());
         thread::spawn(move || {
             if printon { println!("Indexer[{}] coming online", i); }
             // Listen unless the sender has disconnected
@@ -82,7 +82,8 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
                             "" => continue,
                             _ => {
                                 // Serialize the send portion
-                                serial_send.send(word.to_string()).unwrap();
+                                //serial_send.send(word.to_string()).unwrap();
+                                data.upsert(word.to_owned(), 1, &|count| *count += 1);
                             },
                         }
                     }
@@ -93,35 +94,17 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
         })
     }).collect();
 
-    // Serialize access to the hashmap instead of sharing
-    // it
-    let data2 = data.clone();
-    let serialize_guard = thread::spawn(move || {
-        if printon { println!("Serializer coming online"); }
-        let mut data = data2.lock().unwrap();
-        while let Ok(n) = serial_recv.recv_sync() {
-            *data.entry(n).or_insert(0) += 1;
-        }
-        if printon { println!("Serializer terminating"); }
-    });
-
     // Join the sender, then receivers
     send_guard.join().unwrap();
     for i in recv_guards {
         i.join().unwrap();
     }
-    // drop the final copy of serial_send
-    drop(serial_send);
-    serialize_guard.join().unwrap();
 
-    if printon {
-        let data = data.lock().unwrap();
-        let mut counts: Vec<(String, u32)> = data.iter().map(|(s, &n)| (s.clone(), n)).collect();
-        counts.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
-        for (i, &(ref word, count)) in counts.iter().enumerate() {
-            if i > 10 { break; }
-            println!("[{}]\t{}", word, count);
-        }
+    let mut counts: Vec<(String, usize)> = data.iter().map(|(s, &n)| (s.clone(), n)).collect();
+    counts.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+    for (i, &(ref word, count)) in counts.iter().enumerate() {
+        if i >= 10 { break; }
+        println!("[{}]\t{}", word, count);
     }
 }
 
