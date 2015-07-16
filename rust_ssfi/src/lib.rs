@@ -114,18 +114,13 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     drop(serial_send);
     serialize_guard.join().unwrap();
 
-    // Prints alphabetically
-    let mut counter = 0;
     if printon {
         let data = data.lock().unwrap();
-        let mut words: Vec<&String> = data.keys().collect();
-        words.sort();
-        for &word in &words {
-            if counter >= 20 { break; }
-            if let Some(count) = data.get(word) {
-                println!("[{}]\t{}", count, word);
-            }
-            counter += 1;
+        let mut counts: Vec<(String, u32)> = data.iter().map(|(s, &n)| (s.clone(), n)).collect();
+        counts.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+        for (i, &(ref word, count)) in counts.iter().enumerate() {
+            if i > 10 { break; }
+            println!("[{}]\t{}", word, count);
         }
     }
 }
