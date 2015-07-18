@@ -8,7 +8,6 @@ extern crate regex;
 extern crate concurrent_hashmap;
 
 use std::thread;
-use std::ascii::AsciiExt;
 use std::fs;
 use std::fs::File;
 use std::io::BufReader;
@@ -74,18 +73,14 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
 
                 // Now read the lines from the file
                 for line in BufReader::new(file).lines() {
-                    let ln = line.unwrap().to_ascii_lowercase();
-                    let re = regex!(r"[^a-zA-Z0-9_]+");
-                    let words: Vec<&str> = re.split(&ln).collect();
+                    let ln: String = line.unwrap();
+                    let words: Vec<String> = ln.split(|w: char| !w.is_alphanumeric())
+                                             .map(|w| w.to_lowercase())
+                                             .filter(|w| !w.is_empty())
+                                             .collect();
                     for word in words {
-                        match word {
-                            "" => continue,
-                            _ => {
-                                // Serialize the send portion
-                                //serial_send.send(word.to_string()).unwrap();
-                                data.upsert(word.to_owned(), 1, &|count| *count += 1);
-                            },
-                        }
+                        // Insert into the concurrent hashmap
+                        data.upsert(word.to_owned(), 1, &|count| *count += 1);
                     }
                 } // BufReader
             }
