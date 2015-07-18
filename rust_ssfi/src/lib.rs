@@ -23,7 +23,10 @@ use concurrent_hashmap::*;
 
 pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     // Set up any persistent variables
-    let data: Arc<ConcHashMap<String, usize>> = Arc::new(Default::default());
+    let mut data_opt: Options<_> = Default::default();
+    data_opt.capacity = 524_288; // Roughly half the words in english
+    data_opt.concurrency = 64; // Finer grained concurrency
+    let data: Arc<ConcHashMap<String, usize>> = Arc::new(ConcHashMap::with_options(data_opt));
     let (send, recv) = spmc::unbounded::new();
 
     // Start the sender
@@ -75,9 +78,9 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
                 for line in BufReader::new(file).lines() {
                     let ln: String = line.unwrap();
                     let words: Vec<String> = ln.split(|w: char| !w.is_alphanumeric())
-                                             .map(|w| w.to_lowercase())
-                                             .filter(|w| !w.is_empty())
-                                             .collect();
+                                               .map(|w| w.to_lowercase())
+                                               .filter(|w| !w.is_empty())
+                                               .collect();
                     for word in words {
                         // Insert into the concurrent hashmap
                         data.upsert(word.to_owned(), 1, &|count| *count += 1);
@@ -95,11 +98,13 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
         i.join().unwrap();
     }
 
-    let mut counts: Vec<(String, usize)> = data.iter().map(|(s, &n)| (s.clone(), n)).collect();
-    counts.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
-    for (i, &(ref word, count)) in counts.iter().enumerate() {
-        if i >= 10 { break; }
-        println!("[{}]\t{}", word, count);
+    if printon{
+        let mut counts: Vec<(String, usize)> = data.iter().map(|(s, &n)| (s.clone(), n)).collect();
+        counts.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+        for (i, &(ref word, count)) in counts.iter().enumerate() {
+            if i >= 10 { break; }
+            println!("[{}]\t{}", word, count);
+        }
     }
 }
 
