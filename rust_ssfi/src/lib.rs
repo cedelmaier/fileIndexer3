@@ -21,7 +21,7 @@ use comm::{spmc, mpsc};
 
 pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     // Set up any persistent variables
-    let data = Arc::new(Mutex::new(HashMap::<String, usize>::new()));
+    let data = Arc::new(Mutex::new(HashMap::<String, usize>::with_capacity(524_288)));
     let (send, recv) = spmc::unbounded::new();
     let (serial_send, serial_recv) = mpsc::unbounded::new();
 
@@ -76,9 +76,9 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
                     // Fastest alphanumeric split, faster than regex! and Regex::new
                     let ln: String = line.unwrap();
                     let words: Vec<String> = ln.split(|w: char| !w.is_alphanumeric())
-                                             .map(|w| w.to_lowercase())
-                                             .filter(|w| !w.is_empty())
-                                             .collect();
+                                               .map(|w| w.to_lowercase())
+                                               .filter(|w| !w.is_empty())
+                                               .collect();
                     for word in words {
                         // Serialize the send portion
                         serial_send.send(word.to_string()).unwrap();

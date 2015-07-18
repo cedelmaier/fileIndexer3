@@ -1,6 +1,6 @@
 [package]
 name = "ssfi_spmc"
-version = "0.4.0"
+version = "1.0.2"
 authors = ["Christopher Edelmaier <christopher.edelmaier@gmail.com>"]
 
 [dependencies]
