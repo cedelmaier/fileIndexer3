@@ -7,7 +7,6 @@ extern crate comm;
 extern crate regex;
 
 use std::thread;
-use std::ascii::AsciiExt;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -22,7 +21,7 @@ use comm::{spmc, mpsc};
 
 pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     // Set up any persistent variables
-    let data = Arc::new(Mutex::new(HashMap::<String, u32>::new()));
+    let data = Arc::new(Mutex::new(HashMap::<String, usize>::new()));
     let (send, recv) = spmc::unbounded::new();
     let (serial_send, serial_recv) = mpsc::unbounded::new();
 
@@ -74,17 +73,15 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
 
                 // Now read the lines from the file
                 for line in BufReader::new(file).lines() {
-                    let ln = line.unwrap().to_ascii_lowercase();
-                    let re = regex!(r"[^a-zA-Z0-9_]+");
-                    let words: Vec<&str> = re.split(&ln).collect();
+                    // Fastest alphanumeric split, faster than regex! and Regex::new
+                    let ln: String = line.unwrap();
+                    let words: Vec<String> = ln.split(|w: char| !w.is_alphanumeric())
+                                             .map(|w| w.to_lowercase())
+                                             .filter(|w| !w.is_empty())
+                                             .collect();
                     for word in words {
-                        match word {
-                            "" => continue,
-                            _ => {
-                                // Serialize the send portion
-                                serial_send.send(word.to_string()).unwrap();
-                            },
-                        }
+                        // Serialize the send portion
+                        serial_send.send(word.to_string()).unwrap();
                     }
                 } // BufReader
             }
@@ -115,17 +112,13 @@ pub fn ssfi(nthreads: usize, directory: &str, printon: bool) {
     serialize_guard.join().unwrap();
 
     // Prints alphabetically
-    let mut counter = 0;
     if printon {
         let data = data.lock().unwrap();
-        let mut words: Vec<&String> = data.keys().collect();
-        words.sort();
-        for &word in &words {
-            if counter >= 20 { break; }
-            if let Some(count) = data.get(word) {
-                println!("[{}]\t{}", count, word);
-            }
-            counter += 1;
+        let mut counts: Vec<(String, usize)> = data.iter().map(|(s, &n)| (s.clone(), n)).collect();
+        counts.sort_by(|&(_, a), &(_, b)| b.cmp(&a));
+        for (i, &(ref word, count)) in counts.iter().enumerate() {
+            if i >= 10 { break; }
+            println!("[{}]\t{}", word, count);
         }
     }
 }
@@ -138,11 +131,11 @@ mod tests {
 
     #[bench]
     fn ssfi_test_t1(b: &mut test::Bencher) {
-        b.iter(|| test::black_box(ssfi(1, "../test/test0", false)))
+        b.iter(|| test::black_box(ssfi(1, "../../test/Clone0", false)))
     } 
 
     #[bench]
     fn ssfi_test_t2(b: &mut test::Bencher) {
-        b.iter(|| test::black_box(ssfi(2, "../test/test0", false)))
+        b.iter(|| test::black_box(ssfi(2, "../../test/Clone0", false)))
     } 
 }
