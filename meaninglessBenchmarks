@@ -1,0 +1,28 @@
+These are the benchmarks for running the different configuration of the file
+indexer on Linux Mint 17.1, i7-2760QM with 8gigs of RAM.
+
+                          N Threads
+
+cpp:       11.2s    6.1s    4.9s    2.9s
+go:        1m23s   52.2s   42.5s   44.0s
+r_serial:  24.9s    7.7s    8.2s    9.3s
+r_conc:    10.3s    5.6s    3.3s    2.6s
+
+This really isn't an apples to apples cmoparison.  All 4 versions use some
+sort of different concurrency mechanism.
+
+C++ uses a local hashmap, which is then merged into the global one at the
+end.  So each thread doesn't have to synchronize itself with the others.
+
+Go uses channels to synchronize access to the global hashmap.  This is
+accomplished by serializing the data via a channel, and having a separate
+goroutine enter the data into the hashmap.
+
+Rust: serialized uses this same strategy.  It accomplishes the shared
+access via serialization, which is done by a separate thread.  We use
+the comm spmc and mpsc channels for this.
+
+Rust: concurrent hashmap is closest to the one that I wanted.  A
+concurrent hashmap managed the shared acccess, which should truly
+be concurrent.  It does this by dividing up the hashmap into shards,
+each of which has a RwLock attached to it.
