@@ -1,9 +1,9 @@
-extern crate ssfi_spmc;
+extern crate ssfi_rust;
 extern crate getopts;
 
 use std::env;
 
-use ssfi_spmc::ssfi;
+use ssfi_rust::ssfi;
 
 use getopts::Options;
 
